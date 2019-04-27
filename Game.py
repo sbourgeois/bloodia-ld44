@@ -7,7 +7,6 @@ from Utils import calc_distance, calc_orientation
 
 class Game:
 	def __init__(self):
-		self.life = 100
 		self.hero = Hero()
 		self.monsters = []
 		self.spawn_monster(1, 120.0, 120.0)
@@ -35,7 +34,7 @@ class Game:
 			sprite(x, y0, 16, 0, 16, 12)
 			x += 16
 		sprite(x, y0, 32, 0, 16, 12)
-		Utils.draw_text("LIFE: {0}".format(self.life), x0 + 3, y0 + 3)
+		Utils.draw_text("LIFE: {0}".format(self.hero.life), x0 + 3, y0 + 3)
 
 
 	def update(self, delta):
@@ -47,9 +46,46 @@ class Game:
 		if btnp(4) and not self.hero.attacking:
 			self.hero_attack()
 
+		# move and update monsters
+		self.move_monsters(delta)
+
+		Utils.update_particles(delta)
+		
+	def hero_attack(self):
+		self.hero.attacking = True
+		self.hero.attack_time = 0.0
+
+		monsters_hit = self.monsters_in_rect(self.hero.attack_hitbox)
+
+		for m in monsters_hit:
+			self.hero_hit_monster(m)
+			
+		sounds = ["shoot 1", "shoot 2", "expl 2", "expl 3"]
+		sfx(sounds[rand(len(sounds))])
+
+	def spawn_monster(self, t, x, y):
+		m = Monster()
+		m.x = x
+		m.y = y
+		self.monsters.append(m)
+
+
+	def hero_hit_monster(self, monster):
+		h = self.hero
+		monster.life -= h.force
+		if monster.life <= 0:
+			self.destroy_monster(monster)
+
+
+	def destroy_monster(self, monster):
+		self.monsters.remove(monster)
+		
+
+	def move_monsters(self, delta):
+		h = self.hero
+
 		# move monsters toward hero
 		for m in self.monsters:
-			h = self.hero
 			d = calc_distance(h, m)
 			tres = 17.0
 			if d > 17.0:
@@ -77,20 +113,9 @@ class Game:
 			m.move(delta)
 			m.think(delta, h)
 
-		Utils.update_particles(delta)
-		
-	def hero_attack(self):
-		self.hero.attacking = True
-		self.hero.attack_time = 0.0
+	def monsters_in_rect(self, rect):
+		return [m for m in self.monsters if Utils.rect_intersect(rect,m.hitbox)]
 
-		sounds = ["shoot 1", "shoot 2", "expl 2", "expl 3"]
-		sfx(sounds[rand(len(sounds))])
-
-	def spawn_monster(self, t, x, y):
-		m = Monster()
-		m.x = x
-		m.y = y
-		self.monsters.append(m)
 
 class Actor:
 	def __init__(self):
@@ -104,6 +129,8 @@ class Actor:
 		self.move_x = 0
 		self.move_y = 0
 		self.orientation = 0
+		self.force = 0
+		self.life = 100
 
 	def move(self, delta):
 		self.vel_x = self.move_x * self.move_speed
@@ -117,12 +144,26 @@ class Actor:
 		self.x = nx
 		self.y = ny
 
+	@property
+	def hitbox(self):
+		return (self.x, self.y, self.width, self.height)
+
+	@property
+	def attack_hitbox(self):
+		vec = Utils.vector_with_orientation(self.orientation)
+		dx = 16 * vec[0]
+		dy = 16 * vec[1]
+
+		return (self.x + dx, self.y + dy, 16, 16)
+
 
 class Hero(Actor):
 	def __init__(self):
 		super().__init__()
 		self.attacking = False
 		self.attack_time = 0.0
+		self.force = 10
+		self.life = 100
 
 	def draw(self):
 		image("spr")
@@ -138,7 +179,7 @@ class Hero(Actor):
 
 			rotate(0)
 			pivot(0,0)
-			
+
 
 	def read_inputs(self, delta):
 		self.move_x = 0
@@ -164,6 +205,8 @@ class Monster(Actor):
 		super().__init__()
 		self.move_speed = 12.0
 		self.hit_delay = 1.0
+		self.force = 2
+		self.life = 20
 
 	def draw(self):
 		image("spr")

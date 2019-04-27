@@ -7,6 +7,19 @@ from pyxen import *
 def calc_distance(a, b):
 	return math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2)
 
+# a and b : (x,y,w,h)
+def rect_intersect(a, b):
+	ax0 = a[0]
+	ax1 = ax0 + a[2]
+	ay0 = a[1]
+	ay1 = ay0 + a[3]
+	bx0 = b[0]
+	bx1 = bx0 + b[2]
+	by0 = b[1]
+	by1 = by0 + b[3]
+	return ax0 < bx1 and ax1 > bx0 and ay0 < by1 and ay1 > by0
+
+
 def calc_orientation(move_x, move_y):
 	if move_x == 1 and move_y == 0:
 		return 0
