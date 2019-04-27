@@ -9,8 +9,10 @@ class Game:
 	def __init__(self):
 		self.hero = Hero()
 		self.monsters = []
+		self.props = []
 		self.spawn_monster(1, 120.0, 120.0)
 		self.spawn_monster(1, 160.0, 120.0)
+		self.spawn_prop(1, 100, 100)
 
 	def draw(self):
 		mmap("level1")
@@ -19,6 +21,8 @@ class Game:
 		self.hero.draw()
 		for m in self.monsters:
 			m.draw()
+		for prop in self.props:
+			prop.draw()
 
 		# Particles
 		Utils.draw_particles()
@@ -49,6 +53,10 @@ class Game:
 		# move and update monsters
 		self.move_monsters(delta)
 
+		# update props
+		for prop in self.props:
+			prop.update(delta)
+
 		Utils.update_particles(delta)
 		
 	def hero_attack(self):
@@ -68,6 +76,12 @@ class Game:
 		m.x = x
 		m.y = y
 		self.monsters.append(m)
+
+	def spawn_prop(self, t, x, y):
+		m = Generator(self)
+		m.x = x
+		m.y = y
+		self.props.append(m)
 
 
 	def hero_hit_monster(self, monster):
@@ -233,6 +247,40 @@ class Monster(Actor):
 		sfx(sounds[rand(len(sounds))])
 
 
+
+class Generator(Actor):
+	def __init__(self, game):
+		super().__init__()
+		self.move_speed = 0.0
+		self.force = 0
+		self.life = 50
+		self.game = game
+		self.gen_delay = 4.0
+
+	def draw(self):
+		image("spr")
+		sprite(self.x, self.y, 16, 32, 16, 16)
+
+	def update(self, delta):
+		self.gen_delay -= delta
+		if self.gen_delay <= 0.0:
+			self.generate()
+			self.gen_delay = 4.0 + 0.5 * rand(8)
+
+	def generate(self):
+		ori = rand(8)
+
+		for i in range(0, 8):
+			vec = Utils.vector_with_orientation((ori + i) % 8)
+			dx = 16 * vec[0]
+			dy = 16 * vec[1]
+
+			hb = (self.x + dx, self.y + dy, 16, 16)
+
+			monsters = self.game.monsters_in_rect(hb)
+			if len(monsters) == 0:
+				self.game.spawn_monster(1, hb[0], hb[1])
+				break
 
 
 
