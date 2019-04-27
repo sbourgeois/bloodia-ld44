@@ -96,6 +96,12 @@ class Game:
 
 		for m in monsters_hit:
 			self.hero_hit_monster(m)
+
+		props_hit = self.props_in_rect(self.hero.attack_hitbox)
+		log("found {0} props in hitbox".format(len(props_hit)))
+
+		for p in props_hit:
+			self.hero_hit_prop(p)
 			
 		sounds = ["shoot 1", "shoot 2", "expl 2", "expl 3"]
 		sfx(sounds[rand(len(sounds))])
@@ -117,6 +123,12 @@ class Game:
 		self.next_id += 1
 		self.props.append(m)
 
+	def hero_hit_prop(self, prop):
+		h = self.hero
+		if isinstance(prop, Generator):
+			prop.life -= h.force
+			if prop.life <= 0:
+				self.destroy_prop(prop)
 
 	def hero_hit_monster(self, monster):
 		h = self.hero
@@ -129,6 +141,8 @@ class Game:
 		if hero.life <= 0:
 			self.hero_killed()
 	
+	def destroy_prop(self, prop):
+		self.props.remove(prop)
 
 	def destroy_monster(self, monster):
 		self.monsters.remove(monster)
@@ -171,6 +185,10 @@ class Game:
 	def monsters_in_rect(self, rect):
 		return [m for m in self.monsters if Utils.rect_intersect(rect,m.hitbox)]
 
+	def props_in_rect(self, rect):
+		return [p for p in self.props if Utils.rect_intersect(rect, p.hitbox)]
+
+	
 
 class Actor:
 	def __init__(self):
@@ -303,7 +321,7 @@ class Generator(Actor):
 		super().__init__()
 		self.move_speed = 0.0
 		self.force = 0
-		self.life = 50
+		self.life = 40
 		self.game = game
 		self.gen_delay = 4.0
 
