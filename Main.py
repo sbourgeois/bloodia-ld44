@@ -8,6 +8,7 @@ def update(delta):
 	if btnp(6):
 		quit()
 
+	sfxbank("main")
 	game.update(delta)
 
 def draw():

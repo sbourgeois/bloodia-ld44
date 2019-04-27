@@ -83,6 +83,9 @@ class Game:
 		self.hero.attacking = True
 		self.hero.attack_time = 0.0
 
+		sounds = ["shoot 1", "shoot 2", "expl 2", "expl 3"]
+		sfx(sounds[rand(len(sounds))])
+
 	def spawn_monster(self, t, x, y):
 		m = Monster()
 		m.x = x
@@ -182,6 +185,9 @@ class Monster(Actor):
 		hit_x = 8.0 + self.x + 0.75 * (hero.x - self.x)
 		hit_y = 8.0 + self.y + 0.75 * (hero.y - self.y)
 		Utils.fx_blood(hit_x, hit_y)
+
+		sounds = ["hit 1", "hit 3", "hit 4"]
+		sfx(sounds[rand(len(sounds))])
 
 
 
