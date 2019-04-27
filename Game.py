@@ -22,6 +22,9 @@ class Game:
 		for m in self.monsters:
 			m.draw()
 
+		# Particles
+		Utils.draw_particles()
+
 		# draw HUD
 		image("ui")
 		x0 = (256 - 5 * 16) // 2
@@ -64,6 +67,9 @@ class Game:
 				m.move_x = 0
 				m.move_y = 0
 			m.move(delta)
+			m.think(delta, h)
+
+		Utils.update_particles(delta)
 		
 
 	def spawn_monster(self, t, x, y):
@@ -118,10 +124,33 @@ class Monster(Actor):
 	def __init__(self):
 		super().__init__()
 		self.move_speed = 12.0
+		self.hit_delay = 1.0
 
 	def draw(self):
 		image("spr")
 		sprite(self.x, self.y, 0, 16, 16, 16)
+
+
+	def think(self, delta, hero):
+		d = calc_distance(hero, self)		
+		if d <= 19.0:
+			self.hit_delay -= delta
+
+		if d <= 18.0 and self.hit_delay <= 0.0:
+			self.hit_delay = (rand(10)) / 5
+			self.attack_hero(hero)
+
+	def attack_hero(self, hero):
+		global game
+
+		hit_x = 8.0 + self.x + 0.75 * (hero.x - self.x)
+		hit_y = 8.0 + self.y + 0.75 * (hero.y - self.y)
+		Utils.fx_blood(hit_x, hit_y)
+
+
+
+
+
 
 
 
