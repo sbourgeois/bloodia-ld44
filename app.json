@@ -1,0 +1,10 @@
+{
+  "virtualGamePad" : true,
+  "preferredSceneSize" : [
+    256,
+    240
+  ],
+  "runtimeVersion" : 1,
+  "playerType" : 1,
+  "mainModule" : "Main"
+}
