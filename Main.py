@@ -4,6 +4,9 @@ from Game import *
 
 game = Game()
 
+def load():
+	game.load()
+
 def update(delta):
 	if btnp(6):
 		quit()

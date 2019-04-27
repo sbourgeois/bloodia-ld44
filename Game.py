@@ -6,6 +6,8 @@ import Utils
 
 from Utils import calc_distance, calc_orientation
 
+sfx_volume = 0.30
+
 class Game:
 	def __init__(self):
 		self.next_id = 1
@@ -25,7 +27,10 @@ class Game:
 		self.spawn_prop(1, 64, 224)
 		self.spawn_prop(1, 224, 224)
 
+
+	def load(self):
 		reset_colliders()
+		start_music("LD44")		
 
 	def draw(self):
 		mmap("level1")
@@ -46,6 +51,9 @@ class Game:
 			self.draw_ui()
 
 	def update(self, delta):
+		if not pyxen.is_playing_music():
+			start_music("LD44")	
+
 		mmap("level1")
 		self.hero.read_inputs(delta)
 		self.hero.update(delta)
@@ -104,7 +112,7 @@ class Game:
 			self.hero_hit_prop(p)
 			
 		sounds = ["shoot 1", "shoot 2", "expl 2", "expl 3"]
-		sfx(sounds[rand(len(sounds))])
+		sfx(sounds[rand(len(sounds))], sfx_volume)
 
 	def spawn_monster(self, t, x, y):
 		m = Monster()
@@ -311,7 +319,7 @@ class Monster(Actor):
 		Utils.fx_blood(hit_x, hit_y)
 
 		sounds = ["hit 1", "hit 3", "hit 4"]
-		sfx(sounds[rand(len(sounds))])
+		sfx(sounds[rand(len(sounds))], sfx_volume)
 
 		self.game.monster_hit_hero(self, hero)
 
