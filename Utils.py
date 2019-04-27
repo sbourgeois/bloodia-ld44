@@ -1,6 +1,38 @@
 import pyxen
+import math
+
 from pyxen import *
 
+
+def calc_distance(a, b):
+	return math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2)
+
+def calc_orientation(move_x, move_y):
+	if move_x == 1 and move_y == 0:
+		return 0
+	elif move_x == 1 and move_y == 1:
+		return 1
+	elif move_x == 0 and move_y == 1:
+		return 2
+	elif move_x == -1 and move_y == 1:
+		return 3
+	elif move_x == -1 and move_y == 0:
+		return 4
+	elif move_x == -1 and move_y == -1:
+		return 5
+	elif move_x == 0 and move_y == -1:
+		return 6
+	elif move_x == 1 and move_y == -1:
+		return 7
+	return -1		
+
+_angles = [0, 315, 270, 225, 180, 135, 90, 45]
+def angle_with_orientation(orient):
+	return _angles[orient]
+
+_vectors = [(1,0), (1,1), (0,1), (-1,1), (-1,0), (-1,-1), (0,-1), (1,-1)]
+def vector_with_orientation(orient):
+	return _vectors[orient]
 
 def draw_text(s, x, y):
 	dx = 0
