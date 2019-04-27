@@ -1,12 +1,14 @@
 from pyxen import *
 
 import math
+import Utils
 
 def calc_distance(a, b):
 	return math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2)
 
 class Game:
 	def __init__(self):
+		self.life = 100
 		self.hero = Hero()
 		self.monsters = []
 		self.spawn_monster(1, 120.0, 120.0)
@@ -19,6 +21,19 @@ class Game:
 		self.hero.draw()
 		for m in self.monsters:
 			m.draw()
+
+		# draw HUD
+		image("ui")
+		x0 = (256 - 5 * 16) // 2
+		x = x0
+		y0 = 0
+		sprite(x, y0, 0, 0, 16, 12)
+		x += 16
+		for i in range(1,4):
+			sprite(x, y0, 16, 0, 16, 12)
+			x += 16
+		sprite(x, y0, 32, 0, 16, 12)
+		Utils.draw_text("LIFE: {0}".format(self.life), x0 + 3, y0 + 3)
 
 
 	def update(self, delta):
