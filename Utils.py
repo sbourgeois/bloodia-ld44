@@ -82,14 +82,14 @@ def update_particles(delta):
 		particles.remove(p)
 
 
-def draw_particles():
+def draw_particles(scroll_x, scroll_y):
 	global particles
 
 	image("fx")
 	for p in particles:
 		i = int(p.t)
 		j = 0
-		sprite(p.x - 4, p.y - 4, i * 8, j * 8, 8, 8)
+		sprite(p.x - 4 - scroll_x, p.y - 4 - scroll_y, i * 8, j * 8, 8, 8)
 
 def fx_blood(x, y):
 	global particles

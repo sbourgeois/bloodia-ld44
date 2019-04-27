@@ -8,10 +8,22 @@ from Utils import calc_distance, calc_orientation
 
 sfx_volume = 0.30
 
+
 class Game:
 	def __init__(self):
 		self.next_id = 1
 		self.game_over = False
+		self.level_name = "level1"
+		self.fade_in_time = 0.0
+		self.fade_out_time = 0.0
+		self.fade_in = True			# fade in entering the level
+		self.fade_out = False		# fade out to next level
+
+		self.scroll_x = 0.0
+		self.scroll_y = 0.0
+
+		self.map_cols = 40
+		self.map_rows = 30
 
 		self.hero = Hero()
 		self.hero.id = self.next_id
@@ -20,41 +32,111 @@ class Game:
 		self.monsters = []
 		self.props = []
 
-		self.spawn_monster(1, 120.0, 120.0)
-		self.spawn_monster(1, 160.0, 120.0)
-		self.spawn_prop(1, 64, 64)
-		self.spawn_prop(1, 224, 64)
-		self.spawn_prop(1, 64, 224)
-		self.spawn_prop(1, 224, 224)
+		self.exit_loc = None
 
+	def enter_level(self, level_name):
+		self.level_name = level_name
+		log("entering level " + level_name)
+		self.monsters = []
+		self.props = []
 
-	def load(self):
+		self.setup_level()
 		reset_colliders()
-		start_music("LD44")		
+		start_music("LD44")
+
+		self.hero.x = 160.0
+		self.hero.y = 160.0
+
+		self.fade_in = True
+		self.fade_in_time = 0.0
+		self.fade_out = False
+
+		self.focus_on_hero()
+
+	def enter_next_level(self):
+		if self.level_name == "level1":
+			self.enter_level("shop")
+		else:
+			self.enter_level("level1")
+
+	def setup_level(self):
+		mreset(self.level_name)
+		mmap(self.level_name)
+		stair_tiles = mfind(8)
+		self.exit_loc = stair_tiles[rand(len(stair_tiles))]
+		for tile in stair_tiles:
+			(col, row) = tile
+			if col != self.exit_loc[0] or row != self.exit_loc[1]:
+				mset(col, row, 0)
+
+		prop_tiles = mfind(16)
+		for tile in prop_tiles:
+			(col, row) = tile
+			mset(col, row, 0)
+
+		# spawn generators
+		nb_generators = len(prop_tiles) // 2
+		if self.level_name == "shop":
+			nb_generators = 0
+
+		for i in range(0, nb_generators):
+			tile = prop_tiles[rand(len(prop_tiles))]
+			(col, row) = tile
+			self.spawn_prop(1, col * 16, row * 16)
+			
+		self.focus_on_hero()
 
 	def draw(self):
-		mmap("level1")
-		mdraw(0, 0, 0, 0, 16, 16)
+		self.draw_map()
 
-		self.hero.draw()
+		self.hero.draw(self.scroll_x, self.scroll_y)
 		for m in self.monsters:
-			m.draw()
+			m.draw(self.scroll_x, self.scroll_y)
 		for prop in self.props:
-			prop.draw()
+			prop.draw(self.scroll_x, self.scroll_y)
 
 		# Particles
-		Utils.draw_particles()
+		Utils.draw_particles(self.scroll_x, self.scroll_y)
 
 		if self.game_over:
 			self.draw_game_over()
 		else:
 			self.draw_ui()
 
+		if self.fade_in:
+			self.draw_fade_in()
+		if self.fade_out:
+			self.draw_fade_out()
+
+	def draw_map(self):
+		mmap(self.level_name)
+		first_col = int(self.scroll_x) // 16
+		first_row = int(self.scroll_y) // 16
+		mdraw(-self.scroll_x, -self.scroll_y, first_col, first_row, 16+1, 15+1)
+		
 	def update(self, delta):
+		if self.fade_in:
+			self.fade_in_time += delta
+			if self.fade_in_time >= 2.50:
+				self.start_gameplay()
+
+		if self.fade_out:
+			self.fade_out_time += delta
+			if self.fade_out_time >= 2.50:
+				self.enter_next_level()
+
+		if not self.fade_in and not self.fade_out:
+			self.update_loop(delta)
+
+	def start_gameplay(self):
+		self.fade_in = False
+		self.fade_in_time = 0.0
+
+	def update_loop(self, delta):
 		if not pyxen.is_playing_music():
 			start_music("LD44")	
 
-		mmap("level1")
+		mmap(self.level_name)
 		self.hero.read_inputs(delta)
 		self.hero.update(delta)
 
@@ -65,6 +147,11 @@ class Game:
 			p.enable_collider()
 
 		self.hero.move(delta)
+
+		# did the hero reach exit stairs ?
+		exit_hb = (self.exit_loc[0] * 16, self.exit_loc[1] * 16, 16, 16)
+		if Utils.rect_intersect(self.hero.hitbox, exit_hb):
+			self.hero_reach_exit()
 
 		# after hero move, enable his collider
 		self.hero.enable_collider()
@@ -81,11 +168,51 @@ class Game:
 
 		Utils.update_particles(delta)
 
+		self.focus_on_hero()
+
+	def focus_on_hero(self):
+		# Update scroll to keep hero on screen
+		x_in_screen = self.hero.x - self.scroll_x
+		y_in_screen = self.hero.y - self.scroll_y
+		if x_in_screen >= 192.0:
+			self.scroll_x = self.hero.x - 192.0
+		if x_in_screen <= 64.0:
+			self.scroll_x = self.hero.x - 64.0
+		if y_in_screen >= 176.0:
+			self.scroll_y = self.hero.y - 176.0
+		if y_in_screen <= 64.0:
+			self.scroll_y = self.hero.y - 64.0
+
+		if self.scroll_x < 0.0: 
+			self.scroll_x = 0.0
+		if self.scroll_x > (self.map_cols * 16 - 256): 
+			self.scroll_x = self.map_cols * 16 - 256
+		if self.scroll_y < 0.0: 
+			self.scroll_y = 0.0
+		if self.scroll_y > (self.map_rows * 16 - 240): 
+			self.scroll_y = self.map_rows * 16 - 240
+
 	def draw_ui(self):
 		x0 = (256 - 5 * 16) // 2
 		y0 = 0
 		Utils.draw_ui_box(x0, y0, 3)
 		Utils.draw_text("LIFE: {0}".format(self.hero.life), x0 + 3, y0 + 3)		
+	def draw_fade_in(self):
+		txt = "Entering Level"
+		w = len(txt) * 8
+		x0 = (256 - w) // 2
+		y0 = 100
+		Utils.draw_ui_box(x0, y0, 1 + (w - 32) // 16)
+		Utils.draw_text(txt, x0 + 3, y0 + 3)
+
+	def draw_fade_out(self):
+		txt = "Level Finished!"
+		w = len(txt) * 8
+		x0 = (256 - w) // 2
+		y0 = 100
+		Utils.draw_ui_box(x0, y0, 1 + (w - 32) // 16)
+		Utils.draw_text(txt, x0 + 3, y0 + 3)
+
 	def draw_game_over(self):
 		w = 21 * 8
 		x0 = (256 - w) // 2
@@ -113,6 +240,11 @@ class Game:
 			
 		sounds = ["shoot 1", "shoot 2", "expl 2", "expl 3"]
 		sfx(sounds[rand(len(sounds))], sfx_volume)
+
+	def hero_reach_exit(self):
+		self.fade_out = True
+		self.fade_out_time = 0.0
+		sfx("rand 10", sfx_volume)
 
 	def spawn_monster(self, t, x, y):
 		m = Monster()
@@ -255,9 +387,9 @@ class Hero(Actor):
 		self.force = 10
 		self.life = 100
 
-	def draw(self):
+	def draw(self, scroll_x, scroll_y):
 		image("spr")
-		sprite(self.x, self.y, 0, 0, 16, 16)
+		sprite(self.x - scroll_x, self.y - scroll_y, 0, 0, 16, 16)
 
 		if self.attacking:
 			vec = Utils.vector_with_orientation(self.orientation)
@@ -265,7 +397,7 @@ class Hero(Actor):
 			dy = 8 + 5 * vec[1]
 			pivot(3,8)
 			rotate(Utils.angle_with_orientation(self.orientation))
-			sprite(self.x + dx, self.y + dy, 0, 16*2, 16, 16)
+			sprite(self.x + dx - scroll_x, self.y + dy - scroll_y, 0, 16*2, 16, 16)
 
 			rotate(0)
 			pivot(0,0)
@@ -299,9 +431,9 @@ class Monster(Actor):
 		self.life = 20
 		self.game = None
 
-	def draw(self):
+	def draw(self, scroll_x, scroll_y):
 		image("spr")
-		sprite(self.x, self.y, 0, 16, 16, 16)
+		sprite(self.x - scroll_x, self.y - scroll_y, 0, 16, 16, 16)
 
 
 	def think(self, delta, hero):
@@ -333,9 +465,9 @@ class Generator(Actor):
 		self.game = game
 		self.gen_delay = 4.0
 
-	def draw(self):
+	def draw(self, scroll_x, scroll_y):
 		image("spr")
-		sprite(self.x, self.y, 16, 32, 16, 16)
+		sprite(self.x - scroll_x, self.y - scroll_y, 16, 32, 16, 16)
 
 	def update(self, delta):
 		self.gen_delay -= delta
