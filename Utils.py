@@ -98,5 +98,15 @@ def fx_blood(x, y):
 	particles.append(p)
 	
 
+def draw_ui_box(x0, y0, nb_repeats):
+	image("ui")
+	x = x0
+	sprite(x, y0, 0, 0, 16, 12)
+	x += 16
+	for i in range(0,nb_repeats):
+		sprite(x, y0, 16, 0, 16, 12)
+		x += 16
+	sprite(x, y0, 32, 0, 16, 12)
+
 
 

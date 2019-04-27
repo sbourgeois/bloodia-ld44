@@ -1,5 +1,6 @@
 from pyxen import *
 
+import pyxen
 import math
 import Utils
 
@@ -7,12 +8,24 @@ from Utils import calc_distance, calc_orientation
 
 class Game:
 	def __init__(self):
+		self.next_id = 1
+		self.game_over = False
+
 		self.hero = Hero()
+		self.hero.id = self.next_id
+		self.next_id += 1
+
 		self.monsters = []
 		self.props = []
+
 		self.spawn_monster(1, 120.0, 120.0)
 		self.spawn_monster(1, 160.0, 120.0)
-		self.spawn_prop(1, 100, 100)
+		self.spawn_prop(1, 64, 64)
+		self.spawn_prop(1, 224, 64)
+		self.spawn_prop(1, 64, 224)
+		self.spawn_prop(1, 224, 224)
+
+		reset_colliders()
 
 	def draw(self):
 		mmap("level1")
@@ -27,25 +40,26 @@ class Game:
 		# Particles
 		Utils.draw_particles()
 
-		# draw HUD
-		image("ui")
-		x0 = (256 - 5 * 16) // 2
-		x = x0
-		y0 = 0
-		sprite(x, y0, 0, 0, 16, 12)
-		x += 16
-		for i in range(1,4):
-			sprite(x, y0, 16, 0, 16, 12)
-			x += 16
-		sprite(x, y0, 32, 0, 16, 12)
-		Utils.draw_text("LIFE: {0}".format(self.hero.life), x0 + 3, y0 + 3)
-
+		if self.game_over:
+			self.draw_game_over()
+		else:
+			self.draw_ui()
 
 	def update(self, delta):
 		mmap("level1")
 		self.hero.read_inputs(delta)
 		self.hero.update(delta)
+
+		pyxen.reset_colliders()	
+		for m in self.monsters:
+			m.enable_collider()
+		for p in self.props:
+			p.enable_collider()
+
 		self.hero.move(delta)
+
+		# after hero move, enable his collider
+		self.hero.enable_collider()
 
 		if btnp(4) and not self.hero.attacking:
 			self.hero_attack()
@@ -58,7 +72,22 @@ class Game:
 			prop.update(delta)
 
 		Utils.update_particles(delta)
-		
+
+	def draw_ui(self):
+		x0 = (256 - 5 * 16) // 2
+		y0 = 0
+		Utils.draw_ui_box(x0, y0, 3)
+		Utils.draw_text("LIFE: {0}".format(self.hero.life), x0 + 3, y0 + 3)		
+	def draw_game_over(self):
+		w = 21 * 8
+		x0 = (256 - w) // 2
+		y0 = 100
+		Utils.draw_ui_box(x0, y0, 1 + (w - 32) // 16)
+		Utils.draw_text("Your life is consumed", x0 + 3, y0 + 3)
+
+	def hero_killed(self):
+		self.game_over = True
+
 	def hero_attack(self):
 		self.hero.attacking = True
 		self.hero.attack_time = 0.0
@@ -75,12 +104,17 @@ class Game:
 		m = Monster()
 		m.x = x
 		m.y = y
+		m.id = self.next_id
+		m.game = self
+		self.next_id += 1
 		self.monsters.append(m)
 
 	def spawn_prop(self, t, x, y):
 		m = Generator(self)
 		m.x = x
 		m.y = y
+		m.id = self.next_id
+		self.next_id += 1
 		self.props.append(m)
 
 
@@ -90,6 +124,11 @@ class Game:
 		if monster.life <= 0:
 			self.destroy_monster(monster)
 
+	def monster_hit_hero(self, monster, hero):
+		hero.life -= monster.force
+		if hero.life <= 0:
+			self.hero_killed()
+	
 
 	def destroy_monster(self, monster):
 		self.monsters.remove(monster)
@@ -124,7 +163,9 @@ class Game:
 			if ori != -1:
 				m.orientation = ori
 
+			m.disable_collider()
 			m.move(delta)
+			m.enable_collider()
 			m.think(delta, h)
 
 	def monsters_in_rect(self, rect):
@@ -145,6 +186,8 @@ class Actor:
 		self.orientation = 0
 		self.force = 0
 		self.life = 100
+		self.id = 0
+		self.collider_flag = 1
 
 	def move(self, delta):
 		self.vel_x = self.move_x * self.move_speed
@@ -169,6 +212,13 @@ class Actor:
 		dy = 16 * vec[1]
 
 		return (self.x + dx, self.y + dy, 16, 16)
+
+	def enable_collider(self):
+		hb = self.hitbox
+		pyxen.set_collider(self.id, hb[0], hb[1], hb[2], hb[3], self.collider_flag)
+
+	def disable_collider(self):
+		pyxen.unset_collider(self.id)
 
 
 class Hero(Actor):
@@ -219,8 +269,9 @@ class Monster(Actor):
 		super().__init__()
 		self.move_speed = 12.0
 		self.hit_delay = 1.0
-		self.force = 2
+		self.force = 4
 		self.life = 20
+		self.game = None
 
 	def draw(self):
 		image("spr")
@@ -237,8 +288,6 @@ class Monster(Actor):
 			self.attack_hero(hero)
 
 	def attack_hero(self, hero):
-		global game
-
 		hit_x = 8.0 + self.x + 0.75 * (hero.x - self.x)
 		hit_y = 8.0 + self.y + 0.75 * (hero.y - self.y)
 		Utils.fx_blood(hit_x, hit_y)
@@ -246,6 +295,7 @@ class Monster(Actor):
 		sounds = ["hit 1", "hit 3", "hit 4"]
 		sfx(sounds[rand(len(sounds))])
 
+		self.game.monster_hit_hero(self, hero)
 
 
 class Generator(Actor):

@@ -9,7 +9,8 @@ def update(delta):
 		quit()
 
 	sfxbank("main")
-	game.update(delta)
+	if not game.game_over:
+		game.update(delta)
 
 def draw():
 	cls(39.0 / 256.0, 39.0 / 255.0, 68.0 / 255.0, 1.0)
