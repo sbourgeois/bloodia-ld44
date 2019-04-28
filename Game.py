@@ -10,6 +10,7 @@ sfx_volume = 0.30
 
 PROP_GENERATOR = 1
 PROP_POTION = 2
+PROP_CHEST = 3
 
 
 class Game:
@@ -126,6 +127,7 @@ class Game:
 
 		# Particles
 		Utils.draw_particles(self.scroll_x, self.scroll_y)
+		Utils.draw_isprites(self.scroll_x, self.scroll_y)
 
 		if self.game_over:
 			self.draw_game_over()
@@ -204,6 +206,7 @@ class Game:
 			prop.update(delta)
 
 		Utils.update_particles(delta)
+		Utils.update_isprites(delta)
 
 		self.focus_on_hero()
 
@@ -293,7 +296,7 @@ class Game:
 		self.destroy_prop(loot)
 		self.hero.life += 20
 		sfx("pickup 4", sfx_volume)
-		
+		Utils.fx_raise_sprite(loot.x, loot.y, 2, 2)
 
 	def spawn_monster(self, t, x, y):
 		m = Monster()
@@ -586,6 +589,22 @@ class Loot(Actor):
 	def disable_collider(self):
 		# no collider for loot
 		return
+
+
+class Chest(Actor):
+	def __init__(self, game):
+		super().__init__()
+		self.move_speed = 0.0
+		self.force = 0
+		self.life = 400
+		self.game = game
+
+	def draw(self, scroll_x, scroll_y):
+		image("spr")
+		sprite(self.x - scroll_x, self.y - scroll_y, 48, 32, 16, 16)
+
+	def update(self, delta):
+		pass
 
 
 
