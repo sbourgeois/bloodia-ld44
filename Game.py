@@ -44,9 +44,14 @@ class Game:
 		self.exit_loc = None
 		self.spawn_points = []
 
-	def enter_level(self, level_name):
-		self.level_name = level_name
-		log("entering level " + level_name)
+		self.levels = ["level1", "shop", "level1", "final"]
+		self.current_level = 0
+
+
+	def enter_level(self, level_idx):
+		self.current_level = level_idx
+		self.level_name = self.levels[level_idx]
+		log("entering level " + self.level_name)
 		self.monsters = []
 		self.props = []
 		self.spawn_points = []
@@ -76,10 +81,9 @@ class Game:
 	def enter_next_level(self):
 		if self.level_name == "final":
 			self.game_end = True
-		elif self.level_name == "level1":
-			self.enter_level("shop")
 		else:
-			self.enter_level("level1")
+			self.current_level += 1
+			self.enter_level(self.current_level)
 
 	def setup_level(self):
 		mreset(self.level_name)

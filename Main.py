@@ -7,7 +7,7 @@ import Utils
 game = Game()
 
 def load():
-	game.enter_level("final")
+	game.enter_level(0)
 
 def update(delta):
 	if btnp(6):
