@@ -36,19 +36,22 @@ class Game:
 		self.props = []
 
 		self.exit_loc = None
+		self.spawn_points = []
 
 	def enter_level(self, level_name):
 		self.level_name = level_name
 		log("entering level " + level_name)
 		self.monsters = []
 		self.props = []
+		self.spawn_points = []
 
 		self.setup_level()
 		reset_colliders()
 		start_music("LD44")
 
-		self.hero.x = 160.0
-		self.hero.y = 160.0
+		sp = self.spawn_points[rand(len(self.spawn_points))]
+		self.hero.x = sp[0] * 16
+		self.hero.y = sp[1] * 16
 
 		self.fade_in = True
 		self.fade_in_time = 0.0
@@ -75,6 +78,12 @@ class Game:
 			(col, row) = tile
 			if col != self.exit_loc[0] or row != self.exit_loc[1]:
 				mset(col, row, 0)
+
+		# Find spawn locators in map
+		self.spawn_points = mfind(17)
+		for tile in self.spawn_points:
+			(col, row) = tile
+			mset(col, row, 0)
 
 		prop_tiles = mfind(16)
 		for tile in prop_tiles:
@@ -103,8 +112,6 @@ class Game:
 			self.spawn_prop(PROP_POTION, col * 16, row * 16)
 			prop_tiles.remove(tile)
 
-			
-		self.focus_on_hero()
 
 	def draw(self):
 		self.draw_map()
