@@ -15,6 +15,7 @@ PROP_CHEST = 3
 LOOT_POTION = 1
 LOOT_SHIELD = 2
 LOOT_BOW = 3
+LOOT_SKULL = 4
 
 ATK_SWORD = 0
 ATK_BOW	= 1
@@ -23,7 +24,8 @@ loot_sprites = [
 	(0,0),
 	(2,2),		# Potion
 	(1,3),		# Shield
-	(3,3)		# Bow
+	(3,3),		# Bow
+	(4,2)		# Skull
 ]
 
 level_list = [
@@ -161,8 +163,18 @@ class Game:
 			(col, row) = tile
 			mset(col, row, 0)
 
+		# spawn potions
+		nb_potions = min(2, len(prop_tiles) // 2)
+		
+		for i in range(0, nb_potions):
+			tile = prop_tiles[rand(len(prop_tiles))]
+			(col, row) = tile
+			p = self.spawn_prop(PROP_LOOT, col * 16, row * 16)
+			p.loot_type = LOOT_POTION
+			prop_tiles.remove(tile)
+
 		# spawn generators
-		nb_generators = len(prop_tiles) // 2
+		nb_generators = len(prop_tiles)
 		if self.current_level == 0:
 			nb_generators = len(prop_tiles)
 
@@ -172,16 +184,8 @@ class Game:
 			self.spawn_prop(PROP_GENERATOR, col * 16, row * 16)
 			prop_tiles.remove(tile)
 
-		# spawn potions
-		nb_potions = min(3, len(prop_tiles) // 2)
-		
-		for i in range(0, nb_potions):
-			tile = prop_tiles[rand(len(prop_tiles))]
-			(col, row) = tile
-			p = self.spawn_prop(PROP_LOOT, col * 16, row * 16)
-			p.loot_type = LOOT_POTION
-			prop_tiles.remove(tile)
 
+		# spawn chest
 		nb_chests = 1
 		prop_tiles = mfind(18)
 		for tile in prop_tiles:
@@ -455,6 +459,9 @@ class Game:
 		elif loot_type == LOOT_BOW:
 			self.hero.attack_type = ATK_BOW
 			sfx("pickup 4", sfx_volume)
+		elif loot_type == LOOT_SKULL:
+			self.hero_pay_life(40)
+			sfx("rand 4", sfx_volume)
 
 		self.raise_loot_sprite(loot_type, loot_x, loot_y)
 
@@ -941,12 +948,9 @@ class Chest(Actor):
 		self.force = 0
 		self.life = 400
 		self.game = game
-		rnd = rand(3)
-		self.loot_type = LOOT_POTION
-		if rnd == 0:
-			self.loot_type = LOOT_SHIELD
-		elif rnd == 1:
-			self.loot_type = LOOT_BOW
+		loots = [LOOT_POTION, LOOT_SHIELD, LOOT_BOW, LOOT_SKULL]
+		rnd = rand(len(loots))
+		self.loot_type = loots[rnd]
 		self.cost = 0
 		self.prox_time = 0.0
 
@@ -1142,17 +1146,16 @@ class Projectile:
 shop_table = [
 	(0, PROP_LOOT, LOOT_POTION),
 
-	(10, PROP_CHEST, LOOT_POTION),
-	(10, PROP_CHEST, LOOT_SHIELD),
-	(10, PROP_CHEST, LOOT_BOW),
+	(15, PROP_CHEST, LOOT_POTION),
+	(15, PROP_CHEST, LOOT_SHIELD),
+	(15, PROP_CHEST, LOOT_BOW),
+	(15, PROP_CHEST, LOOT_SKULL),
 
-	(5,  PROP_LOOT, LOOT_SHIELD),
-	(10, PROP_LOOT, LOOT_SHIELD),
+	(15, PROP_LOOT, LOOT_SHIELD),
 	(15, PROP_LOOT, LOOT_SHIELD),
 
-	(20, PROP_LOOT, LOOT_BOW),
-	(20, PROP_LOOT, LOOT_BOW),
-	(10, PROP_LOOT, LOOT_BOW)
+	(40, PROP_LOOT, LOOT_BOW),
+	(40, PROP_LOOT, LOOT_BOW)
 ]
 
 
