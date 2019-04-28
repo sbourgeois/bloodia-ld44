@@ -16,6 +16,7 @@ LOOT_POTION = 1
 LOOT_SHIELD = 2
 LOOT_BOW = 3
 LOOT_SKULL = 4
+LOOT_KEY = 5
 
 ATK_SWORD = 0
 ATK_BOW	= 1
@@ -25,19 +26,21 @@ loot_sprites = [
 	(2,2),		# Potion
 	(1,3),		# Shield
 	(3,3),		# Bow
-	(4,2)		# Skull
+	(4,2),		# Skull
+	(4,3)		# Key
 ]
 
 level_list = [
-	{"name": "level0", "title": "Level 1", "end": "Level Complete", "monsters": [1]},
-	{"name": "shop", "title": "Pay with your Life", "end": None, "monsters": None},
-	{"name": "level1", "title": "Level 2", "end": "Level Complete", "monsters": [3]},
-	{"name": "shop", "title": "Your life is taxed", "end": None, "monsters": None},
-	{"name": "level1", "title": "Level 3", "end": "Level Complete", "monsters": [4]},
-	{"name": "shop", "title": "Life is Money is Time", "end": None, "monsters": None},
-	{"name": "level2", "title": "Level 4", "end": "Level Complete", "monsters": [1,3,4,4]},
-	{"name": "shop", "title": "Pay blood, Get loot", "end": None, "monsters": None},
-	{"name": "final", "title": "Final Battle!", "end": "Victory!", "monsters": None}
+	{"name": "level0", "title": "Level 1", "end": "Level Complete", 
+		"monsters": [1], "key": False},
+	{"name": "shop", "title": "Pay with your Life", "end": None, "monsters": None, "key": False},
+	{"name": "level1", "title": "Level 2", "end": "Level Complete", "monsters": [3], "key": False},
+	{"name": "shop", "title": "Your life is taxed", "end": None, "monsters": None, "key": False},
+	{"name": "level1", "title": "Level 3", "end": "Level Complete", "monsters": [4], "key": True},
+	{"name": "shop", "title": "Life is Money is Time", "end": None, "monsters": None, "key": False},
+	{"name": "level2", "title": "Level 4", "end": "Level Complete", "monsters": [1,3,4,4], "key": False},
+	{"name": "shop", "title": "Pay blood, Get loot", "end": None, "monsters": None, "key": False},
+	{"name": "final", "title": "Final Battle!", "end": "Victory!", "monsters": None, "key": False}
 ]
 
 class Game:
@@ -67,10 +70,12 @@ class Game:
 		self.boss = None
 		self.win_time = 0.0
 
+		self.key_needed = False
+		self.key_found = False
 		self.exit_loc = None
 		self.spawn_points = []
 
-		self.levels = level_list # ["shop", "level1", "shop", "level1", "final"]
+		self.levels = level_list
 		self.current_level = 0
 
 
@@ -84,6 +89,8 @@ class Game:
 		self.spawn_points = []
 		self.boss = None
 		self.win_time = 0.0
+		self.key_needed = self.levels[level_idx]["key"]
+		self.key_found = False
 
 		self.setup_level()
 		reset_colliders()
@@ -124,6 +131,10 @@ class Game:
 				(col, row) = tile
 				if col != self.exit_loc[0] or row != self.exit_loc[1]:
 					mset(col, row, 0)
+			if self.key_needed:
+				mset(self.exit_loc[0], self.exit_loc[1], 9)
+
+		
 
 		# Find spawn locators in map
 		self.spawn_points = mfind(17)
@@ -162,6 +173,14 @@ class Game:
 		for tile in prop_tiles:
 			(col, row) = tile
 			mset(col, row, 0)
+
+		# spawn key
+		if self.key_needed:
+			tile = prop_tiles[rand(len(prop_tiles))]
+			(col, row) = tile
+			p = self.spawn_prop(PROP_LOOT, col * 16, row * 16)
+			p.loot_type = LOOT_KEY
+			prop_tiles.remove(tile)
 
 		# spawn potions
 		nb_potions = min(2, len(prop_tiles) // 2)
@@ -300,7 +319,10 @@ class Game:
 		if self.exit_loc is not None:
 			exit_hb = (self.exit_loc[0] * 16, self.exit_loc[1] * 16, 16, 16)
 			if Utils.rect_intersect(self.hero.hitbox, exit_hb):
-				self.hero_reach_exit()
+				if self.key_needed and not self.key_found:
+					pass
+				else:
+					self.hero_reach_exit()
 
 		# after hero move, enable his collider for further monsters move
 		self.hero.enable_collider()
@@ -462,6 +484,10 @@ class Game:
 		elif loot_type == LOOT_SKULL:
 			self.hero_pay_life(40)
 			sfx("rand 4", sfx_volume)
+		elif loot_type == LOOT_KEY:
+			self.key_found = True
+			mset(self.exit_loc[0], self.exit_loc[1], 8)
+			sfx("pickup 6", sfx_volume)
 
 		self.raise_loot_sprite(loot_type, loot_x, loot_y)
 
