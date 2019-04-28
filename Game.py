@@ -27,8 +27,14 @@ loot_sprites = [
 ]
 
 level_list = [
-	{"name": "shop", "title": "The Shop", "end": None, "monsters": None},
-	{"name": "level1", "title": "Level 1", "end": "Level Complete", "monsters": [1]},
+	{"name": "level0", "title": "Level 1", "end": "Level Complete", "monsters": [1]},
+	{"name": "shop", "title": "Pay with your Life", "end": None, "monsters": None},
+	{"name": "level1", "title": "Level 2", "end": "Level Complete", "monsters": [3]},
+	{"name": "shop", "title": "Your life is taxed", "end": None, "monsters": None},
+	{"name": "level1", "title": "Level 3", "end": "Level Complete", "monsters": [4]},
+	{"name": "shop", "title": "Life is Money is Time", "end": None, "monsters": None},
+	{"name": "level1", "title": "Level 4", "end": "Level Complete", "monsters": [4]},
+	{"name": "shop", "title": "Pay blood, Get loot", "end": None, "monsters": None},
 	{"name": "final", "title": "Final Battle!", "end": "Victory!", "monsters": None}
 ]
 
@@ -157,6 +163,8 @@ class Game:
 
 		# spawn generators
 		nb_generators = len(prop_tiles) // 2
+		if self.current_level == 0:
+			nb_generators = len(prop_tiles)
 
 		for i in range(0, nb_generators):
 			tile = prop_tiles[rand(len(prop_tiles))]
@@ -166,7 +174,7 @@ class Game:
 
 		# spawn potions
 		nb_potions = min(3, len(prop_tiles) // 2)
-
+		
 		for i in range(0, nb_potions):
 			tile = prop_tiles[rand(len(prop_tiles))]
 			(col, row) = tile
@@ -461,12 +469,26 @@ class Game:
 		m = None
 		if t == 2:
 			m = BossPart()
+		elif t == 1:
+			m = Monster()
+			m.shooter = False
+		elif t == 3:
+			m = Monster()
+			m.shooter = True
+			m.projectile_type = 1	
+		elif t == 4:
+			m = Monster()
+			m.shooter = True
+			m.projectile_type = 0
+			m.life = 50
 		else:
 			m = Monster()
+
 		m.x = x
 		m.y = y
 		m.id = self.next_id
 		m.game = self
+		m.monster_type = t
 		self.next_id += 1
 		self.monsters.append(m)
 		return m
@@ -799,12 +821,19 @@ class Monster(Actor):
 		self.force = 4
 		self.life = 20
 		self.game = None
-		self.shooter = True
+		self.shooter = False
 		self.projectile_type = 1
+		self.monster_type = 1		# basic monster
 
 	def draw(self, scroll_x, scroll_y):
 		image("spr")
 		sprite(self.x - scroll_x, self.y - scroll_y, 0, 16, 16, 16)
+
+		# shield for monster type 4
+		if self.monster_type == 4:
+			dx = -4
+			dy = 6
+			sprite(self.x + dx - scroll_x, self.y + dy - scroll_y, 16, 48, 16, 16)
 
 
 	def think(self, delta, hero):
