@@ -9,12 +9,17 @@ from Utils import calc_distance, calc_man_distance, calc_orientation
 sfx_volume = 0.30
 
 PROP_GENERATOR = 1
-PROP_POTION = 2
+PROP_LOOT = 2
 PROP_CHEST = 3
 
 LOOT_POTION = 1
 LOOT_SHIELD = 2
 
+loot_sprites = [
+	(0,0),
+	(2,2),		# Potion
+	(1,3)		# Shield
+]
 
 class Game:
 	def __init__(self):
@@ -45,7 +50,7 @@ class Game:
 		self.exit_loc = None
 		self.spawn_points = []
 
-		self.levels = ["level1", "shop", "level1", "final"]
+		self.levels = ["shop", "level1", "shop", "level1", "final"]
 		self.current_level = 0
 
 
@@ -147,18 +152,24 @@ class Game:
 			prop_tiles.remove(tile)
 
 		# spawn potions
-		nb_potions = len(prop_tiles) // 2
+		nb_potions = min(3, len(prop_tiles) // 2)
 
 		for i in range(0, nb_potions):
 			tile = prop_tiles[rand(len(prop_tiles))]
 			(col, row) = tile
-			self.spawn_prop(PROP_POTION, col * 16, row * 16)
+			p = self.spawn_prop(PROP_LOOT, col * 16, row * 16)
+			p.loot_type = LOOT_POTION
 			prop_tiles.remove(tile)
 
+		nb_chests = 1
 		prop_tiles = mfind(18)
 		for tile in prop_tiles:
 			(col, row) = tile
 			mset(col, row, 0)
+
+		for i in range(0, nb_chests):
+			tile = prop_tiles[rand(len(prop_tiles))]
+			(col, row) = tile
 			self.spawn_prop(PROP_CHEST, col * 16, row * 16)
 
 	
@@ -406,11 +417,7 @@ class Game:
 			self.close_shop()
 
 	def raise_loot_sprite(self, loot_type, loot_x, loot_y):
-		col = 2
-		row = 2
-		if loot_type == LOOT_SHIELD:
-			col = 1
-			row = 3
+		(col,row) = loot_sprites[loot_type]
 		Utils.fx_raise_sprite(loot_x, loot_y, col, row)
 
 	def spawn_monster(self, t, x, y):
@@ -429,7 +436,7 @@ class Game:
 
 	def spawn_prop(self, t, x, y):
 		m = None
-		if t == PROP_POTION:
+		if t == PROP_LOOT:
 			m = Loot()
 		elif t == PROP_CHEST:
 			m = Chest(self)
@@ -724,7 +731,8 @@ class Loot(Actor):
 
 	def draw(self, scroll_x, scroll_y):
 		image("spr")
-		sprite(self.x - scroll_x, self.y - scroll_y, 32, 32, 16, 16)
+		(col,row) = loot_sprites[self.loot_type]
+		sprite(self.x - scroll_x, self.y - scroll_y, col*16, row*16, 16, 16)
 
 	def update(self,delta):
 		pass
@@ -775,7 +783,7 @@ class BossPart(Monster):
 		self.y0 = 16
 		self.x1 = 16
 		self.y1 = 16
-		self.life = 5
+		self.life = 50
 
 	def think(self, delta, hero):
 		pass
@@ -910,14 +918,19 @@ class Boss:
 
 
 shop_table = [
-	(0, PROP_POTION, LOOT_POTION),
+	(0, PROP_LOOT, LOOT_POTION),
+
 	(5, PROP_CHEST, LOOT_POTION),
 	(10, PROP_CHEST, LOOT_POTION),
 	(15, PROP_CHEST, LOOT_POTION),
-	(10, PROP_POTION, LOOT_POTION),
+
 	(5, PROP_CHEST, LOOT_SHIELD),
 	(10, PROP_CHEST, LOOT_SHIELD),
-	(15, PROP_CHEST, LOOT_SHIELD)
+	(15, PROP_CHEST, LOOT_SHIELD),
+
+	(5, PROP_LOOT, LOOT_SHIELD),
+	(10, PROP_LOOT, LOOT_SHIELD),
+	(15, PROP_LOOT, LOOT_SHIELD)
 ]
 
 
