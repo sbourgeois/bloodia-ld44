@@ -53,6 +53,8 @@ class Game:
 		self.hero.x = sp[0] * 16
 		self.hero.y = sp[1] * 16
 
+		self.degen_delay = 5.0
+
 		self.fade_in = True
 		self.fade_in_time = 0.0
 		self.fade_out = False
@@ -163,6 +165,9 @@ class Game:
 		if not pyxen.is_playing_music():
 			start_music("LD44")	
 
+		if self.level_name != "shop":
+			self.tick_in_level(delta)
+
 		mmap(self.level_name)
 		self.hero.read_inputs(delta)
 		self.hero.update(delta)
@@ -201,6 +206,12 @@ class Game:
 		Utils.update_particles(delta)
 
 		self.focus_on_hero()
+
+	def tick_in_level(self, delta):
+		self.degen_delay -= delta
+		if self.degen_delay <= 0.0:
+			self.degenerate_hero()
+			
 
 	def focus_on_hero(self):
 		# Update scroll to keep hero on screen
@@ -322,6 +333,12 @@ class Game:
 		hero.life -= monster.force
 		if hero.life <= 0:
 			self.hero_killed()
+
+	def degenerate_hero(self):
+		self.degen_delay = 2.0
+		self.hero.life -= 1
+		if self.hero.life <= 0:
+			self.hero_killed()		
 	
 	def destroy_prop(self, prop):
 		self.props.remove(prop)
