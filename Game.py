@@ -54,6 +54,10 @@ class Game:
 		self.fade_in_time = 0.0
 		self.fade_out = False
 
+		(numcols, numrows) = msize()
+		self.map_cols = numcols
+		self.map_rows = numrows
+
 		self.focus_on_hero()
 
 	def enter_next_level(self):
