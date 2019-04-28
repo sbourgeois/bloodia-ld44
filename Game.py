@@ -4,7 +4,7 @@ import pyxen
 import math
 import Utils
 
-from Utils import calc_distance, calc_orientation
+from Utils import calc_distance, calc_man_distance, calc_orientation
 
 sfx_volume = 0.30
 
@@ -293,7 +293,7 @@ class Game:
 
 		# move monsters toward hero
 		for m in self.monsters:
-			d = calc_distance(h, m)
+			d = calc_man_distance(h, m)
 			tres = 17.0
 			if d > 17.0:
 				if h.x > (m.x + tres):
@@ -438,10 +438,17 @@ class Monster(Actor):
 
 	def think(self, delta, hero):
 		d = calc_distance(hero, self)		
-		if d <= 19.0:
+		(x,y,w,h) = self.hitbox
+		x -= 2.0
+		y -= 2.0
+		w += 4.0
+		h += 4.0
+		hit = Utils.rect_intersect((x,y,w,h), hero.hitbox)
+
+		if hit:
 			self.hit_delay -= delta
 
-		if d <= 18.0 and self.hit_delay <= 0.0:
+		if hit and self.hit_delay <= 0.0:
 			self.hit_delay = (rand(10)) / 5
 			self.attack_hero(hero)
 

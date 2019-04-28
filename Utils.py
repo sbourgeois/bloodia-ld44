@@ -7,6 +7,9 @@ from pyxen import *
 def calc_distance(a, b):
 	return math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2)
 
+def calc_man_distance(a, b):
+	return math.fabs(b.x - a.x) + math.fabs(b.y - a.y)
+
 # a and b : (x,y,w,h)
 def rect_intersect(a, b):
 	ax0 = a[0]
