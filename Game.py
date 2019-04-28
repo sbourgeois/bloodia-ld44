@@ -14,11 +14,16 @@ PROP_CHEST = 3
 
 LOOT_POTION = 1
 LOOT_SHIELD = 2
+LOOT_BOW = 3
+
+ATK_SWORD = 0
+ATK_BOW	= 1
 
 loot_sprites = [
 	(0,0),
 	(2,2),		# Potion
-	(1,3)		# Shield
+	(1,3),		# Shield
+	(3,3)		# Bow
 ]
 
 class Game:
@@ -44,6 +49,7 @@ class Game:
 
 		self.monsters = []
 		self.props = []
+		self.projectiles = []
 		self.boss = None
 		self.win_time = 0.0
 
@@ -60,6 +66,7 @@ class Game:
 		log("entering level " + self.level_name)
 		self.monsters = []
 		self.props = []
+		self.projectiles = []
 		self.spawn_points = []
 		self.boss = None
 		self.win_time = 0.0
@@ -192,6 +199,10 @@ class Game:
 		for prop in self.props:
 			prop.draw(self.scroll_x, self.scroll_y)
 
+		# projectiles
+		for p in self.projectiles:
+			p.draw(self.scroll_x, self.scroll_y)
+
 		# Particles
 		Utils.draw_particles(self.scroll_x, self.scroll_y)
 		Utils.draw_isprites(self.scroll_x, self.scroll_y)
@@ -252,11 +263,17 @@ class Game:
 		self.hero.update(delta)
 
 		pyxen.reset_colliders()	
+
+		# process projectiles before adding colliders
+		self.update_projectiles(delta)
+
+		# add colliders of monsters and props before moving hero
 		for m in self.monsters:
 			m.enable_collider()
 		for p in self.props:
 			p.enable_collider()
 
+		# move hero
 		self.hero.move(delta)
 
 		# did the hero reach exit stairs ?
@@ -265,7 +282,7 @@ class Game:
 			if Utils.rect_intersect(self.hero.hitbox, exit_hb):
 				self.hero_reach_exit()
 
-		# after hero move, enable his collider
+		# after hero move, enable his collider for further monsters move
 		self.hero.enable_collider()
 
 		# did the hero walk on a prop
@@ -386,6 +403,10 @@ class Game:
 		sounds = ["shoot 1", "shoot 2", "expl 2", "expl 3"]
 		sfx(sounds[rand(len(sounds))], sfx_volume)
 
+		# throw projectile
+		if self.hero.attack_type == ATK_BOW:
+			self.create_projectile(self.hero)
+
 	def hero_reach_exit(self):
 		self.fade_out = True
 		self.fade_out_time = 0.0
@@ -409,6 +430,9 @@ class Game:
 			sfx("pickup 4", sfx_volume)
 		elif loot_type == LOOT_SHIELD:
 			self.hero.shield = 25
+			sfx("pickup 4", sfx_volume)
+		elif loot_type == LOOT_BOW:
+			self.hero.attack_type = ATK_BOW
 			sfx("pickup 4", sfx_volume)
 
 		self.raise_loot_sprite(loot_type, loot_x, loot_y)
@@ -462,6 +486,7 @@ class Game:
 		if monster.life <= 0:
 			self.destroy_monster(monster)
 
+	# monster can be a Monster or Projectile
 	def monster_hit_hero(self, monster, hero):
 		dmg = monster.force
 		if hero.shield > 0:
@@ -472,6 +497,16 @@ class Game:
 		hero.life -= dmg
 		if hero.life <= 0:
 			self.hero_killed()
+
+	def projectile_hit_prop(self, projectile, prop):
+		self.hero_hit_prop(prop)
+
+	def projectile_hit_monster(self, projectile, monster):
+		self.hero_hit_monster(monster)
+
+	def projectile_hit_hero(self, projectile, hero):
+		if projectile.source is not None and isinstance(projectile.source, Monster):
+			self.monster_hit_hero(projectile.source, hero)
 
 	def degenerate_hero(self):
 		self.degen_delay = 2.0
@@ -537,6 +572,56 @@ class Game:
 	def loots_in_rect(self, rect):
 		return [p for p in self.props if isinstance(p,Loot) and Utils.rect_intersect(rect, p.hitbox)]
 
+	
+	def create_projectile(self, source):
+		p = Projectile()
+		p.orientation = source.orientation
+		p.source = source
+		
+		vec = Utils.vector_with_orientation(p.orientation)
+		p.x = source.x + 4 + vec[0] * 8
+		p.y = source.y + 4 + vec[1] * 8
+
+		p.vel_x = vec[0] * 96.0
+		p.vel_y = vec[1] * 96.0
+
+		self.projectiles.append(p)
+		
+	def update_projectiles(self, delta):
+		dead_projectiles = []
+
+		for p in self.projectiles:
+			p.time += delta
+			if p.time >= p.ttl:
+				dead_projectiles.append(p)
+			else:
+				p.x += p.vel_x * delta
+				p.y += p.vel_y * delta
+				
+				hitbox = (p.x, p.y, p.w, p.h)
+				hits = []
+				if isinstance(p.source, Hero):
+					hits = self.monsters_in_rect(hitbox) + self.props_in_rect(hitbox)
+				elif isinstance(p.source, Monster):
+					if Utils.rect_intersect(hitbox, self.hero.hitbox):
+						hits = [self.hero]
+					
+				if len(hits) > 0:
+					for target in hits:
+						if isinstance(target, Chest) or isinstance(target, Loot) or isinstance(target, Generator):
+							self.projectile_hit_prop(p, target)
+						elif isinstance(target, Monster):
+							self.projectile_hit_monster(p, target)
+						elif isinstance(target, Hero):
+							self.projectile_hit_hero(p, target)
+					dead_projectiles.append(p)
+				elif mhit(p.x, p.y, p.w, p.h, 1):
+					dead_projectiles.append(p)
+		
+		for p in dead_projectiles:
+			self.projectiles.remove(p)
+
+
 class Actor:
 	def __init__(self):
 		self.x = 160.0
@@ -591,6 +676,7 @@ class Hero(Actor):
 		super().__init__()
 		self.attacking = False
 		self.attack_time = 0.0
+		self.attack_type = ATK_SWORD
 		self.force = 10
 		self.life = 100
 		self.shield = 25
@@ -610,7 +696,13 @@ class Hero(Actor):
 			dy = 8 + 5 * vec[1]
 			pivot(3,8)
 			rotate(Utils.angle_with_orientation(self.orientation))
-			sprite(self.x + dx - scroll_x, self.y + dy - scroll_y, 0, 16*2, 16, 16)
+			
+			col = 0
+			row = 2
+			if self.attack_type == ATK_BOW:
+				col = 2
+				row = 3
+			sprite(self.x + dx - scroll_x, self.y + dy - scroll_y, col*16, row*16, 16, 16)
 
 			rotate(0)
 			pivot(0,0)
@@ -753,9 +845,12 @@ class Chest(Actor):
 		self.force = 0
 		self.life = 400
 		self.game = game
+		rnd = rand(3)
 		self.loot_type = LOOT_POTION
-		if rand(2) == 0:
-			self.loot_type = LOOT_SHIELD	
+		if rnd == 0:
+			self.loot_type = LOOT_SHIELD
+		elif rnd == 1:
+			self.loot_type = LOOT_BOW
 		self.cost = 0
 		self.prox_time = 0.0
 
@@ -914,23 +1009,46 @@ class Boss:
 			p.y = p.y0
 			p.t = 0.0
 
+class Projectile:
+	def __init__(self):
+		self.x = 0.0
+		self.y = 0.0
+		self.w = 8.0
+		self.h = 8.0
+		self.vel_x = 0.0
+		self.vel_y = 0.0
+		self.source = None
+		self.time = 0.0
+		self.ttl = 4.0
+		self.orientation = 0
 
+	def draw(self, scroll_x, scroll_y):
+		image("fx")
+		vec = Utils.vector_with_orientation(self.orientation)
+		dx = 4
+		dy = 4
+		pivot(4,4)
+		rotate(Utils.angle_with_orientation(self.orientation))
+		sprite(self.x + dx - scroll_x, self.y + dy - scroll_y, 0, 8, 8, 8)
+
+		rotate(0)
+		pivot(0,0)
 
 
 shop_table = [
 	(0, PROP_LOOT, LOOT_POTION),
 
-	(5, PROP_CHEST, LOOT_POTION),
 	(10, PROP_CHEST, LOOT_POTION),
-	(15, PROP_CHEST, LOOT_POTION),
-
-	(5, PROP_CHEST, LOOT_SHIELD),
 	(10, PROP_CHEST, LOOT_SHIELD),
-	(15, PROP_CHEST, LOOT_SHIELD),
+	(10, PROP_CHEST, LOOT_BOW),
 
-	(5, PROP_LOOT, LOOT_SHIELD),
+	(5,  PROP_LOOT, LOOT_SHIELD),
 	(10, PROP_LOOT, LOOT_SHIELD),
-	(15, PROP_LOOT, LOOT_SHIELD)
+	(15, PROP_LOOT, LOOT_SHIELD),
+
+	(20, PROP_LOOT, LOOT_BOW),
+	(20, PROP_LOOT, LOOT_BOW),
+	(10, PROP_LOOT, LOOT_BOW)
 ]
 
 
