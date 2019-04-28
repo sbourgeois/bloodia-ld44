@@ -477,6 +477,12 @@ class Generator(Actor):
 		sprite(self.x - scroll_x, self.y - scroll_y, 16, 32, 16, 16)
 
 	def update(self, delta):
+		sx = self.game.scroll_x
+		sy = self.game.scroll_y
+		view_rect = (sx - 16, sy - 16, sx+256 + 32, sy+240 + 32)
+		if not Utils.rect_intersect(view_rect, self.hitbox):
+			return
+
 		self.gen_delay -= delta
 		if self.gen_delay <= 0.0:
 			self.generate()
