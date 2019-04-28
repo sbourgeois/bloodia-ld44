@@ -37,6 +37,7 @@ class Game:
 
 		self.monsters = []
 		self.props = []
+		self.boss = None
 
 		self.exit_loc = None
 		self.spawn_points = []
@@ -47,6 +48,7 @@ class Game:
 		self.monsters = []
 		self.props = []
 		self.spawn_points = []
+		self.boss = None
 
 		self.setup_level()
 		reset_colliders()
@@ -78,11 +80,14 @@ class Game:
 		mreset(self.level_name)
 		mmap(self.level_name)
 		stair_tiles = mfind(8)
-		self.exit_loc = stair_tiles[rand(len(stair_tiles))]
-		for tile in stair_tiles:
-			(col, row) = tile
-			if col != self.exit_loc[0] or row != self.exit_loc[1]:
-				mset(col, row, 0)
+		if len(stair_tiles) == 0:
+			self.exit_loc = None
+		else:
+			self.exit_loc = stair_tiles[rand(len(stair_tiles))]
+			for tile in stair_tiles:
+				(col, row) = tile
+				if col != self.exit_loc[0] or row != self.exit_loc[1]:
+					mset(col, row, 0)
 
 		# Find spawn locators in map
 		self.spawn_points = mfind(17)
@@ -92,6 +97,8 @@ class Game:
 
 		if self.level_name == "shop":
 			self.setup_shop()
+		elif self.level_name == "final":
+			self.setup_final_level()
 		else:
 			self.setup_standard_level()
 
@@ -108,6 +115,10 @@ class Game:
 			prop = self.spawn_prop(shop_item[1], col * 16, row * 16)
 			prop.cost = shop_item[0]
 			prop.loot_type = shop_item[2]
+
+	def setup_final_level(self):
+		self.boss = Boss(self)
+		self.boss.create_body_parts()
 
 
 	def setup_standard_level(self):
@@ -225,9 +236,10 @@ class Game:
 		self.hero.move(delta)
 
 		# did the hero reach exit stairs ?
-		exit_hb = (self.exit_loc[0] * 16, self.exit_loc[1] * 16, 16, 16)
-		if Utils.rect_intersect(self.hero.hitbox, exit_hb):
-			self.hero_reach_exit()
+		if self.exit_loc is not None:
+			exit_hb = (self.exit_loc[0] * 16, self.exit_loc[1] * 16, 16, 16)
+			if Utils.rect_intersect(self.hero.hitbox, exit_hb):
+				self.hero_reach_exit()
 
 		# after hero move, enable his collider
 		self.hero.enable_collider()
@@ -242,6 +254,10 @@ class Game:
 
 		# move and update monsters
 		self.move_monsters(delta)
+
+		# move boss for the final level
+		if self.boss is not None:
+			self.boss.update_body_parts(delta)
 
 		# update props
 		for prop in self.props:
@@ -360,7 +376,11 @@ class Game:
 		Utils.fx_raise_sprite(loot_x, loot_y, col, row)
 
 	def spawn_monster(self, t, x, y):
-		m = Monster()
+		m = None
+		if t == 2:
+			m = BossPart()
+		else:
+			m = Monster()
 		m.x = x
 		m.y = y
 		m.id = self.next_id
@@ -425,6 +445,9 @@ class Game:
 
 		# move monsters toward hero
 		for m in self.monsters:
+			if isinstance(m, BossPart):
+				continue
+
 			d = calc_man_distance(h, m)
 			tres = 17.0
 			if d > 17.0:
@@ -689,6 +712,146 @@ class Chest(Actor):
 
 			if hit:
 				self.game.open_chest(self)
+
+
+class BossPart(Monster):
+	def __init__(self):
+		super().__init__()
+		self.x0 = 16
+		self.y0 = 16
+		self.x1 = 16
+		self.y1 = 16
+		self.life = 50
+
+	def think(self, delta, hero):
+		pass
+
+	def update(self,delta):
+		pass
+
+	def enable_collider(self):
+		# no collider for loot
+		return
+
+	def disable_collider(self):
+		# no collider for loot
+		return
+
+	def draw(self, scroll_x, scroll_y):
+		image("spr")
+		sprite(self.x - scroll_x, self.y - scroll_y, 0, 48, 16, 16)
+		
+
+class Boss:
+	def __init__(self, game):
+		super().__init__()
+		self.game = game
+		self.t = 0.0
+		self.speed = 4.0
+		self.orientation = 2
+		self.next_rotate_delay = 4.0
+		self.hit_delay = 0.0
+		
+	@property
+	def body_parts(self):
+		return [m for m in self.game.monsters if isinstance(m,BossPart)]
+
+	def create_body_parts(self):
+		x = 128
+		y = 16
+		x1 = 128
+		y1 = 32
+		for i in range(0,8):
+			m = self.game.spawn_monster(2, x, y)
+			m.x0 = x
+			m.y0 = y
+			m.x1 = x1
+			m.y1 = y1
+
+			x1 = x
+			y1 = y
+			y -= 16
+			
+			
+	def update_body_parts(self, delta):
+		self.hit_delay -= delta
+		self.next_rotate_delay -= delta
+		self.t += delta * self.speed
+		if self.t >= 1.0:
+			parts = self.body_parts
+			if len(parts) == 0:
+				pass
+			else:
+				self.advance_boss()
+				self.t = 0.0
+		else:
+			for p in self.body_parts:
+				p.x = (1.0 - self.t) * p.x0 + self.t * p.x1
+				p.y = (1.0 - self.t) * p.y0 + self.t * p.y1
+
+		for p in self.body_parts:
+			(x,y,w,h) = p.hitbox
+			x += 2.0
+			y += 2.0
+			w -= 4.0
+			h -= 4.0
+			hit = Utils.rect_intersect((x,y,w,h), self.game.hero.hitbox)
+			if hit:
+				if self.hit_delay <= 0.0:
+					self.hit_delay = 0.33
+					self.game.monster_hit_hero(p, self.game.hero)
+					Utils.fx_blood(p.x + 8, p.y + 8)
+
+	def advance_boss(self):
+		if self.next_rotate_delay <= 0.0:
+			self.next_rotate_delay = 1.5 + float(rand(5))
+			new_or = rand(8)
+			while new_or == self.orientation or new_or == (self.orientation + 4)%8:
+				new_or = rand(8)
+			self.orientation = new_or
+
+		parts = self.body_parts
+		p = parts[0]
+
+		mx = 256 - 32
+		my = 240 - 48
+
+		if self.orientation >= 1 and self.orientation <= 3 and p.y >= my:
+			self.orientation = 6
+
+		if self.orientation >= 3 and self.orientation <= 5 and p.x <= 32:
+			self.orientation = 0
+
+		if self.orientation >= 5 and self.orientation <= 7 and p.y <= 32:
+			self.orientation = 2
+
+		if (self.orientation == 7 or self.orientation == 0 or self.orientation == 1) and p.x >= mx:
+			self.orientation = 4
+			
+
+		vec = Utils.vector_with_orientation(self.orientation)
+		parts = self.body_parts
+		
+		p = parts[0]
+		p.x0 = p.x1
+		p.y0 = p.y1 
+		p.x1 = p.x0 + vec[0] * 16
+		p.y1 = p.y0 + vec[1] * 16
+		p.x = p.x0
+		p.y = p.y0
+		p.t = 0.0
+
+		for i in range(1,len(parts)):
+			prev = parts[i-1]
+			p = parts[i]
+			p.x0 = p.x1
+			p.x1 = prev.x0
+			p.y0 = p.y1
+			p.y1 = prev.y0 
+			p.x = p.x0
+			p.y = p.y0
+			p.t = 0.0
+
 
 
 
