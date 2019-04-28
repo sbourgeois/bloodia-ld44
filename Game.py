@@ -12,6 +12,8 @@ PROP_GENERATOR = 1
 PROP_POTION = 2
 PROP_CHEST = 3
 
+LOOT_POTION = 1
+
 
 class Game:
 	def __init__(self):
@@ -88,6 +90,27 @@ class Game:
 			(col, row) = tile
 			mset(col, row, 0)
 
+		if self.level_name == "shop":
+			self.setup_shop()
+		else:
+			self.setup_standard_level()
+
+
+	def setup_shop(self):
+		prop_tiles = mfind(16)
+		for tile in prop_tiles:
+			(col, row) = tile
+			mset(col, row, 0)
+
+			loot_idx = rand(len(shop_table))
+			shop_item = shop_table[loot_idx]
+			
+			prop = self.spawn_prop(shop_item[1], col * 16, row * 16)
+			prop.cost = shop_item[0]
+			prop.loot_type = shop_item[2]
+
+
+	def setup_standard_level(self):
 		prop_tiles = mfind(16)
 		for tile in prop_tiles:
 			(col, row) = tile
@@ -95,8 +118,6 @@ class Game:
 
 		# spawn generators
 		nb_generators = len(prop_tiles) // 2
-		if self.level_name == "shop":
-			nb_generators = 0
 
 		for i in range(0, nb_generators):
 			tile = prop_tiles[rand(len(prop_tiles))]
@@ -106,8 +127,6 @@ class Game:
 
 		# spawn potions
 		nb_potions = len(prop_tiles) // 2
-		if self.level_name == "shop":
-			nb_potions = 0
 
 		for i in range(0, nb_potions):
 			tile = prop_tiles[rand(len(prop_tiles))]
@@ -115,9 +134,25 @@ class Game:
 			self.spawn_prop(PROP_POTION, col * 16, row * 16)
 			prop_tiles.remove(tile)
 
+		prop_tiles = mfind(18)
+		for tile in prop_tiles:
+			(col, row) = tile
+			mset(col, row, 0)
+			self.spawn_prop(PROP_CHEST, col * 16, row * 16)
+
+	
+	# called when a chest or loot is picked up in a shop
+	def close_shop(self):
+		while len(self.props) > 0:
+			p = self.props.pop()
+			if isinstance(p, Chest) or isinstance(p,Loot):
+				self.raise_loot_sprite(p.loot_type, p.x, p.y)
 
 	def draw(self):
 		self.draw_map()
+
+		if self.level_name == "shop":
+			self.draw_shop_items()
 
 		self.hero.draw(self.scroll_x, self.scroll_y)
 		for m in self.monsters:
@@ -138,6 +173,13 @@ class Game:
 			self.draw_fade_in()
 		if self.fade_out:
 			self.draw_fade_out()
+
+	def draw_shop_items(self):
+		for p in self.props:
+			if isinstance(p, Chest) or isinstance(p,Loot):
+				if p.cost != 0:
+					Utils.draw_text("{0}".format(p.cost), p.x, p.y + 16 + 4)
+
 
 	def draw_map(self):
 		mmap(self.level_name)
@@ -294,9 +336,28 @@ class Game:
 
 	def hero_pickup_loot(self, loot):
 		self.destroy_prop(loot)
+		self.hero_loot(loot.loot_type, loot.x, loot.y)
+		if loot.cost != 0:
+			self.hero_pay_life(loot.cost)		
+
+	def open_chest(self, chest):
+		self.destroy_prop(chest)
+		self.hero_loot(chest.loot_type, chest.x, chest.y)
+		if chest.cost != 0:
+			self.hero_pay_life(chest.cost)
+
+	def hero_loot(self, loot_type, loot_x, loot_y):
 		self.hero.life += 20
 		sfx("pickup 4", sfx_volume)
-		Utils.fx_raise_sprite(loot.x, loot.y, 2, 2)
+		self.raise_loot_sprite(loot_type, loot_x, loot_y)
+
+		if self.level_name == "shop":
+			self.close_shop()
+
+	def raise_loot_sprite(self, loot_type, loot_x, loot_y):
+		col = 2
+		row = 2
+		Utils.fx_raise_sprite(loot_x, loot_y, col, row)
 
 	def spawn_monster(self, t, x, y):
 		m = Monster()
@@ -306,11 +367,14 @@ class Game:
 		m.game = self
 		self.next_id += 1
 		self.monsters.append(m)
+		return m
 
 	def spawn_prop(self, t, x, y):
 		m = None
 		if t == PROP_POTION:
 			m = Loot()
+		elif t == PROP_CHEST:
+			m = Chest(self)
 		else:
 			m = Generator(self)
 		m.x = x
@@ -318,6 +382,7 @@ class Game:
 		m.id = self.next_id
 		self.next_id += 1
 		self.props.append(m)
+		return m
 
 	def hero_hit_prop(self, prop):
 		h = self.hero
@@ -341,7 +406,12 @@ class Game:
 		self.degen_delay = 2.0
 		self.hero.life -= 1
 		if self.hero.life <= 0:
-			self.hero_killed()		
+			self.hero_killed()
+
+	def hero_pay_life(self, cost):
+		self.hero.life -= cost
+		if self.hero.life <= 0:
+			self.hero_killed()
 	
 	def destroy_prop(self, prop):
 		self.props.remove(prop)
@@ -574,6 +644,8 @@ class Loot(Actor):
 		self.force = 0
 		self.life = 5
 		self.gen_delay = 4.0
+		self.loot_type = LOOT_POTION
+		self.cost = 0
 
 	def draw(self, scroll_x, scroll_y):
 		image("spr")
@@ -598,14 +670,35 @@ class Chest(Actor):
 		self.force = 0
 		self.life = 400
 		self.game = game
+		self.loot_type = LOOT_POTION
+		self.cost = 0
+		self.prox_time = 0.0
 
 	def draw(self, scroll_x, scroll_y):
 		image("spr")
 		sprite(self.x - scroll_x, self.y - scroll_y, 48, 32, 16, 16)
 
 	def update(self, delta):
-		pass
+		if btnp(5):
+			(x,y,w,h) = self.hitbox
+			x -= 2.0
+			y -= 2.0
+			w += 4.0
+			h += 4.0
+			hit = Utils.rect_intersect((x,y,w,h), self.game.hero.hitbox)
 
+			if hit:
+				self.game.open_chest(self)
+
+
+
+shop_table = [
+	(0, PROP_POTION, LOOT_POTION),
+	(5, PROP_CHEST, LOOT_POTION),
+	(10, PROP_CHEST, LOOT_POTION),
+	(15, PROP_CHEST, LOOT_POTION),
+	(10, PROP_POTION, LOOT_POTION)
+]
 
 
 

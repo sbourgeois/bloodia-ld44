@@ -5,7 +5,7 @@ from Game import *
 game = Game()
 
 def load():
-	game.enter_level("level1")
+	game.enter_level("shop")
 
 def update(delta):
 	if btnp(6):
