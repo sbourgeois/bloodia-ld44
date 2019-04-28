@@ -13,6 +13,7 @@ PROP_POTION = 2
 PROP_CHEST = 3
 
 LOOT_POTION = 1
+LOOT_SHIELD = 2
 
 
 class Game:
@@ -320,7 +321,16 @@ class Game:
 		x0 = (256 - 5 * 16) // 2
 		y0 = 0
 		Utils.draw_ui_box(x0, y0, 3)
-		Utils.draw_text("LIFE: {0}".format(self.hero.life), x0 + 3, y0 + 3)		
+		Utils.draw_text("LIFE: {0}".format(self.hero.life), x0 + 3, y0 + 3)
+
+		if self.hero.shield > 0:
+			x0 = 256 - 16*3
+			Utils.draw_ui_box(x0, y0, 1)
+			image("spr")
+			sprite(x0, y0 - 2, 16, 48, 16, 16)
+			Utils.draw_text("{0}".format(self.hero.shield), x0 + 16, y0 + 3)
+
+		
 	def draw_fade_in(self):
 		txt = "Entering Level"
 		w = len(txt) * 8
@@ -383,8 +393,13 @@ class Game:
 			self.hero_pay_life(chest.cost)
 
 	def hero_loot(self, loot_type, loot_x, loot_y):
-		self.hero.life += 20
-		sfx("pickup 4", sfx_volume)
+		if loot_type == LOOT_POTION:
+			self.hero.life += 20
+			sfx("pickup 4", sfx_volume)
+		elif loot_type == LOOT_SHIELD:
+			self.hero.shield = 25
+			sfx("pickup 4", sfx_volume)
+
 		self.raise_loot_sprite(loot_type, loot_x, loot_y)
 
 		if self.level_name == "shop":
@@ -393,6 +408,9 @@ class Game:
 	def raise_loot_sprite(self, loot_type, loot_x, loot_y):
 		col = 2
 		row = 2
+		if loot_type == LOOT_SHIELD:
+			col = 1
+			row = 3
 		Utils.fx_raise_sprite(loot_x, loot_y, col, row)
 
 	def spawn_monster(self, t, x, y):
@@ -438,7 +456,13 @@ class Game:
 			self.destroy_monster(monster)
 
 	def monster_hit_hero(self, monster, hero):
-		hero.life -= monster.force
+		dmg = monster.force
+		if hero.shield > 0:
+			dmg_shield = min(hero.shield, dmg)
+			hero.shield -= dmg_shield
+			dmg -= dmg_shield
+
+		hero.life -= dmg
 		if hero.life <= 0:
 			self.hero_killed()
 
@@ -562,10 +586,16 @@ class Hero(Actor):
 		self.attack_time = 0.0
 		self.force = 10
 		self.life = 100
+		self.shield = 25
 
 	def draw(self, scroll_x, scroll_y):
 		image("spr")
 		sprite(self.x - scroll_x, self.y - scroll_y, 0, 0, 16, 16)
+
+		if self.shield > 0:
+			dx = -4
+			dy = 6
+			sprite(self.x + dx - scroll_x, self.y + dy - scroll_y, 16, 48, 16, 16)
 
 		if self.attacking:
 			vec = Utils.vector_with_orientation(self.orientation)
@@ -577,6 +607,8 @@ class Hero(Actor):
 
 			rotate(0)
 			pivot(0,0)
+
+
 
 
 	def read_inputs(self, delta):
@@ -655,7 +687,7 @@ class Generator(Actor):
 	def update(self, delta):
 		sx = self.game.scroll_x
 		sy = self.game.scroll_y
-		view_rect = (sx - 16, sy - 16, sx+256 + 32, sy+240 + 32)
+		view_rect = (sx - 64, sy - 64, sx+256 + 128, sy+240 + 128)
 		if not Utils.rect_intersect(view_rect, self.hitbox):
 			return
 
@@ -714,6 +746,8 @@ class Chest(Actor):
 		self.life = 400
 		self.game = game
 		self.loot_type = LOOT_POTION
+		if rand(2) == 0:
+			self.loot_type = LOOT_SHIELD	
 		self.cost = 0
 		self.prox_time = 0.0
 
@@ -880,7 +914,10 @@ shop_table = [
 	(5, PROP_CHEST, LOOT_POTION),
 	(10, PROP_CHEST, LOOT_POTION),
 	(15, PROP_CHEST, LOOT_POTION),
-	(10, PROP_POTION, LOOT_POTION)
+	(10, PROP_POTION, LOOT_POTION),
+	(5, PROP_CHEST, LOOT_SHIELD),
+	(10, PROP_CHEST, LOOT_SHIELD),
+	(15, PROP_CHEST, LOOT_SHIELD)
 ]
 
 
