@@ -480,8 +480,8 @@ class Generator(Actor):
 		sx = self.game.scroll_x
 		sy = self.game.scroll_y
 		view_rect = (sx - 16, sy - 16, sx+256 + 32, sy+240 + 32)
-		if not Utils.rect_intersect(view_rect, self.hitbox):
-			return
+		#if not Utils.rect_intersect(view_rect, self.hitbox):
+		#	return
 
 		self.gen_delay -= delta
 		if self.gen_delay <= 0.0:
@@ -498,8 +498,11 @@ class Generator(Actor):
 
 			hb = (self.x + dx, self.y + dy, 16, 16)
 
-			monsters = self.game.monsters_in_rect(hb)
-			if len(monsters) == 0:
+			hit_something = mhit(hb[0], hb[1], hb[2], hb[3], 1)
+
+			#monsters = self.game.monsters_in_rect(hb)
+			#if len(monsters) == 0:
+			if not hit_something:
 				self.game.spawn_monster(1, hb[0], hb[1])
 				break
 
