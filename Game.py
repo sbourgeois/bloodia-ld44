@@ -26,6 +26,12 @@ loot_sprites = [
 	(3,3)		# Bow
 ]
 
+level_list = [
+	{"name": "shop", "title": "The Shop", "end": None, "monsters": None},
+	{"name": "level1", "title": "Level 1", "end": "Level Complete", "monsters": [1]},
+	{"name": "final", "title": "Final Battle!", "end": "Victory!", "monsters": None}
+]
+
 class Game:
 	def __init__(self):
 		self.next_id = 1
@@ -56,13 +62,13 @@ class Game:
 		self.exit_loc = None
 		self.spawn_points = []
 
-		self.levels = ["shop", "level1", "shop", "level1", "final"]
+		self.levels = level_list # ["shop", "level1", "shop", "level1", "final"]
 		self.current_level = 0
 
 
 	def enter_level(self, level_idx):
 		self.current_level = level_idx
-		self.level_name = self.levels[level_idx]
+		self.level_name = self.levels[level_idx]["name"]
 		log("entering level " + self.level_name)
 		self.monsters = []
 		self.props = []
@@ -236,12 +242,14 @@ class Game:
 
 		if self.fade_in:
 			self.fade_in_time += delta
-			if self.fade_in_time >= 2.50:
+			if self.fade_in_time >= 1.80:
 				self.start_gameplay()
 
 		if self.fade_out:
+			if self.levels[self.current_level]["end"] is None:
+				self.fade_out_time = 1.80
 			self.fade_out_time += delta
-			if self.fade_out_time >= 2.50:
+			if self.fade_out_time >= 1.80:
 				self.enter_next_level()
 
 		if not self.fade_in and not self.fade_out:
@@ -363,7 +371,7 @@ class Game:
 
 		
 	def draw_fade_in(self):
-		txt = "Entering Level"
+		txt = self.levels[self.current_level]["title"]
 		w = len(txt) * 8
 		x0 = (256 - w) // 2
 		y0 = 100
@@ -371,7 +379,9 @@ class Game:
 		Utils.draw_text(txt, x0 + 3, y0 + 3)
 
 	def draw_fade_out(self):
-		txt = "Level Finished!"
+		txt = self.levels[self.current_level]["end"]
+		if txt is None:
+			return
 		w = len(txt) * 8
 		x0 = (256 - w) // 2
 		y0 = 100
@@ -861,7 +871,10 @@ class Generator(Actor):
 
 			hit_something = mhit(hb[0], hb[1], hb[2], hb[3], 1)
 			if not hit_something:
-				self.game.spawn_monster(1, hb[0], hb[1])
+				monster_list = self.game.levels[self.game.current_level]["monsters"]
+				if monster_list is not None and len(monster_list) > 0:
+					monster_type = monster_list[rand(len(monster_list))]
+					self.game.spawn_monster(monster_type, hb[0], hb[1])
 				break
 
 
