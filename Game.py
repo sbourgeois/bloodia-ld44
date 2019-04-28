@@ -19,6 +19,7 @@ class Game:
 	def __init__(self):
 		self.next_id = 1
 		self.game_over = False
+		self.game_end = False
 		self.level_name = "level1"
 		self.fade_in_time = 0.0
 		self.fade_out_time = 0.0
@@ -38,6 +39,7 @@ class Game:
 		self.monsters = []
 		self.props = []
 		self.boss = None
+		self.win_time = 0.0
 
 		self.exit_loc = None
 		self.spawn_points = []
@@ -49,6 +51,7 @@ class Game:
 		self.props = []
 		self.spawn_points = []
 		self.boss = None
+		self.win_time = 0.0
 
 		self.setup_level()
 		reset_colliders()
@@ -71,7 +74,9 @@ class Game:
 		self.focus_on_hero()
 
 	def enter_next_level(self):
-		if self.level_name == "level1":
+		if self.level_name == "final":
+			self.game_end = True
+		elif self.level_name == "level1":
 			self.enter_level("shop")
 		else:
 			self.enter_level("level1")
@@ -199,6 +204,9 @@ class Game:
 		mdraw(-self.scroll_x, -self.scroll_y, first_col, first_row, 16+1, 15+1)
 		
 	def update(self, delta):
+		if self.game_end:
+			return
+
 		if self.fade_in:
 			self.fade_in_time += delta
 			if self.fade_in_time >= 2.50:
@@ -220,7 +228,7 @@ class Game:
 		if not pyxen.is_playing_music():
 			start_music("LD44")	
 
-		if self.level_name != "shop":
+		if self.level_name != "shop" and self.level_name != "final":
 			self.tick_in_level(delta)
 
 		mmap(self.level_name)
@@ -258,6 +266,14 @@ class Game:
 		# move boss for the final level
 		if self.boss is not None:
 			self.boss.update_body_parts(delta)
+
+			if len(self.boss.body_parts) == 0:
+				self.win_time += delta
+
+		# end game logic
+		if self.level_name == "final" and self.win_time >= 2.5:
+			self.enter_next_level()
+
 
 		# update props
 		for prop in self.props:
@@ -721,7 +737,7 @@ class BossPart(Monster):
 		self.y0 = 16
 		self.x1 = 16
 		self.y1 = 16
-		self.life = 50
+		self.life = 5
 
 	def think(self, delta, hero):
 		pass
