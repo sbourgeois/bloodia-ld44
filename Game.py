@@ -33,7 +33,7 @@ level_list = [
 	{"name": "shop", "title": "Your life is taxed", "end": None, "monsters": None},
 	{"name": "level1", "title": "Level 3", "end": "Level Complete", "monsters": [4]},
 	{"name": "shop", "title": "Life is Money is Time", "end": None, "monsters": None},
-	{"name": "level1", "title": "Level 4", "end": "Level Complete", "monsters": [4]},
+	{"name": "level2", "title": "Level 4", "end": "Level Complete", "monsters": [1,3,4,4]},
 	{"name": "shop", "title": "Pay blood, Get loot", "end": None, "monsters": None},
 	{"name": "final", "title": "Final Battle!", "end": "Victory!", "monsters": None}
 ]
