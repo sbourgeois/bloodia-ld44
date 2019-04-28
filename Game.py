@@ -48,6 +48,7 @@ class Game:
 		self.next_id = 1
 		self.game_over = False
 		self.game_end = False
+		self.paused = False
 		self.level_name = "level1"
 		self.fade_in_time = 0.0
 		self.fade_out_time = 0.0
