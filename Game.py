@@ -296,6 +296,9 @@ class Game:
 		# move and update monsters
 		self.move_monsters(delta)
 
+		# shooters
+		self.process_shooter_monsters(delta)
+
 		# move boss for the final level
 		if self.boss is not None:
 			self.boss.update_body_parts(delta)
@@ -405,7 +408,7 @@ class Game:
 
 		# throw projectile
 		if self.hero.attack_type == ATK_BOW:
-			self.create_projectile(self.hero)
+			self.create_projectile(self.hero, self.hero.orientation)
 
 	def hero_reach_exit(self):
 		self.fade_out = True
@@ -563,6 +566,46 @@ class Game:
 			m.enable_collider()
 			m.think(delta, h)
 
+	def process_shooter_monsters(self, delta):
+		h = self.hero
+
+		# monsters can hit player
+		for m in self.monsters:
+			if not m.shooter:
+				continue
+
+			m.hit_delay -= delta
+			if m.hit_delay <= 0.0:
+				m.hit_delay = 2.0 + rand(10)/4
+
+				d = calc_distance(h, m)
+				move_x = 0
+				move_y = 0
+
+				tres = 24
+				if d < 250.0:
+					if h.x > (m.x + tres):
+						move_x = 1
+					elif h.x < (m.x - tres):
+						move_x = -1
+					else:
+						move_x = 0
+
+					if h.y > (m.y + tres):
+						move_y = 1
+					elif h.y < (m.y - tres):
+						move_y = -1
+					else:
+						move_y = 0
+				else:
+					move_x = 0
+					move_y = 0
+
+				ori = calc_orientation(move_x, move_y)
+				if ori != -1:
+					p = self.create_projectile(m, ori)	
+
+
 	def monsters_in_rect(self, rect):
 		return [m for m in self.monsters if Utils.rect_intersect(rect,m.hitbox)]
 
@@ -573,17 +616,25 @@ class Game:
 		return [p for p in self.props if isinstance(p,Loot) and Utils.rect_intersect(rect, p.hitbox)]
 
 	
-	def create_projectile(self, source):
+	def create_projectile(self, source, orientation):
 		p = Projectile()
-		p.orientation = source.orientation
+		if orientation is None:
+			p.orientation = source.orientation
+		else:
+			p.orientation = orientation
 		p.source = source
+		p.projectile_type = source.projectile_type
 		
 		vec = Utils.vector_with_orientation(p.orientation)
 		p.x = source.x + 4 + vec[0] * 8
 		p.y = source.y + 4 + vec[1] * 8
 
-		p.vel_x = vec[0] * 96.0
-		p.vel_y = vec[1] * 96.0
+		speed = 96.0
+		if p.projectile_type == 1:
+			speed = 60.0
+
+		p.vel_x = vec[0] * speed
+		p.vel_y = vec[1] * speed
 
 		self.projectiles.append(p)
 		
@@ -680,6 +731,7 @@ class Hero(Actor):
 		self.force = 10
 		self.life = 100
 		self.shield = 25
+		self.projectile_type = 0
 
 	def draw(self, scroll_x, scroll_y):
 		image("spr")
@@ -737,6 +789,8 @@ class Monster(Actor):
 		self.force = 4
 		self.life = 20
 		self.game = None
+		self.shooter = True
+		self.projectile_type = 1
 
 	def draw(self, scroll_x, scroll_y):
 		image("spr")
@@ -756,7 +810,7 @@ class Monster(Actor):
 			self.hit_delay -= delta
 
 		if hit and self.hit_delay <= 0.0:
-			self.hit_delay = (rand(10)) / 5
+			self.hit_delay = 1.0 + (rand(10)) / 5
 			self.attack_hero(hero)
 
 	def attack_hero(self, hero):
@@ -879,6 +933,7 @@ class BossPart(Monster):
 		self.x1 = 16
 		self.y1 = 16
 		self.life = 50
+		self.shooter = True
 
 	def think(self, delta, hero):
 		pass
@@ -1021,6 +1076,7 @@ class Projectile:
 		self.time = 0.0
 		self.ttl = 4.0
 		self.orientation = 0
+		self.projectile_type = 0
 
 	def draw(self, scroll_x, scroll_y):
 		image("fx")
@@ -1029,7 +1085,13 @@ class Projectile:
 		dy = 4
 		pivot(4,4)
 		rotate(Utils.angle_with_orientation(self.orientation))
-		sprite(self.x + dx - scroll_x, self.y + dy - scroll_y, 0, 8, 8, 8)
+
+		col = 0
+		row = 1
+		if self.projectile_type == 1:
+			col = 1
+
+		sprite(self.x + dx - scroll_x, self.y + dy - scroll_y, col * 8, row * 8, 8, 8)
 
 		rotate(0)
 		pivot(0,0)
