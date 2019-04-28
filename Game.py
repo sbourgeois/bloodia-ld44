@@ -8,6 +8,9 @@ from Utils import calc_distance, calc_man_distance, calc_orientation
 
 sfx_volume = 0.30
 
+PROP_GENERATOR = 1
+PROP_POTION = 2
+
 
 class Game:
 	def __init__(self):
@@ -82,7 +85,20 @@ class Game:
 		for i in range(0, nb_generators):
 			tile = prop_tiles[rand(len(prop_tiles))]
 			(col, row) = tile
-			self.spawn_prop(1, col * 16, row * 16)
+			self.spawn_prop(PROP_GENERATOR, col * 16, row * 16)
+			prop_tiles.remove(tile)
+
+		# spawn potions
+		nb_potions = len(prop_tiles) // 2
+		if self.level_name == "shop":
+			nb_potions = 0
+
+		for i in range(0, nb_potions):
+			tile = prop_tiles[rand(len(prop_tiles))]
+			(col, row) = tile
+			self.spawn_prop(PROP_POTION, col * 16, row * 16)
+			prop_tiles.remove(tile)
+
 			
 		self.focus_on_hero()
 
@@ -155,6 +171,11 @@ class Game:
 
 		# after hero move, enable his collider
 		self.hero.enable_collider()
+
+		# did the hero walk on a prop
+		loots = self.loots_in_rect(self.hero.hitbox)
+		for loot in loots:
+			self.hero_pickup_loot(loot)
 
 		if btnp(4) and not self.hero.attacking:
 			self.hero_attack()
@@ -246,6 +267,12 @@ class Game:
 		self.fade_out_time = 0.0
 		sfx("rand 10", sfx_volume)
 
+	def hero_pickup_loot(self, loot):
+		self.destroy_prop(loot)
+		self.hero.life += 20
+		sfx("pickup 4", sfx_volume)
+		
+
 	def spawn_monster(self, t, x, y):
 		m = Monster()
 		m.x = x
@@ -256,7 +283,11 @@ class Game:
 		self.monsters.append(m)
 
 	def spawn_prop(self, t, x, y):
-		m = Generator(self)
+		m = None
+		if t == PROP_POTION:
+			m = Loot()
+		else:
+			m = Generator(self)
 		m.x = x
 		m.y = y
 		m.id = self.next_id
@@ -328,7 +359,8 @@ class Game:
 	def props_in_rect(self, rect):
 		return [p for p in self.props if Utils.rect_intersect(rect, p.hitbox)]
 
-	
+	def loots_in_rect(self, rect):
+		return [p for p in self.props if isinstance(p,Loot) and Utils.rect_intersect(rect, p.hitbox)]
 
 class Actor:
 	def __init__(self):
@@ -480,8 +512,8 @@ class Generator(Actor):
 		sx = self.game.scroll_x
 		sy = self.game.scroll_y
 		view_rect = (sx - 16, sy - 16, sx+256 + 32, sy+240 + 32)
-		#if not Utils.rect_intersect(view_rect, self.hitbox):
-		#	return
+		if not Utils.rect_intersect(view_rect, self.hitbox):
+			return
 
 		self.gen_delay -= delta
 		if self.gen_delay <= 0.0:
@@ -499,13 +531,33 @@ class Generator(Actor):
 			hb = (self.x + dx, self.y + dy, 16, 16)
 
 			hit_something = mhit(hb[0], hb[1], hb[2], hb[3], 1)
-
-			#monsters = self.game.monsters_in_rect(hb)
-			#if len(monsters) == 0:
 			if not hit_something:
 				self.game.spawn_monster(1, hb[0], hb[1])
 				break
 
+
+class Loot(Actor):
+	def __init__(self):
+		super().__init__()
+		self.move_speed = 0.0
+		self.force = 0
+		self.life = 5
+		self.gen_delay = 4.0
+
+	def draw(self, scroll_x, scroll_y):
+		image("spr")
+		sprite(self.x - scroll_x, self.y - scroll_y, 32, 32, 16, 16)
+
+	def update(self,delta):
+		pass
+
+	def enable_collider(self):
+		# no collider for loot
+		return
+
+	def disable_collider(self):
+		# no collider for loot
+		return
 
 
 
